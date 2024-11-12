@@ -22,8 +22,8 @@ class Robot:
         self.fan_motor = Motor(Port.B)
 
         # Sensors
-        self.color_sensor = ColorSensor(Port.E)
-        self.force_sensor = ForceSensor(Port.C)
+        self.color_sensor = ColorSensor(Port.C)
+        self.force_sensor = ForceSensor(Port.E)
         self.side_sensor = UltrasonicSensor(Port.A)
 
         # Drive Bases
@@ -47,7 +47,7 @@ class Robot:
 
     def detect_wall_on_right(self):
         """Detect wall or opening on the right side for wall following."""
-        return self.side_sensor.distance() < constants.WALL_FOLLOW_MIN_DISTANCE
+        return self.side_sensor.distance() < constants.WALL_FOLLOW_DISTANCE
 
     def detect_goal(self):
         """Detect if the robot is on the goal tile (Red)."""
@@ -57,28 +57,27 @@ class Robot:
         """Drive forward until an obstacle is hit, then switch to wall-following."""
         if self.detect_obstacle():
             self.drive_base.straight(-constants.WALL_FOLLOW_STEP)
-            self.drive_base.turn(90)
+            self.drive_base.turn(-90)
             self.transition_to(WALL_FOLLOWING)
         else:
-            self.drive_base.straight(constants.WANDER_DISTANCE)
+            self.drive_base.drive(125, 0)
 
     def wall_following(self):
         """Wall-following behavior with smoother adjustments, prioritizing right-side corrections."""
         if self.detect_obstacle():
             # When ForceSensor detects contact, back up and make a minimal right turn to stay close to the wall
-            self.drive_base.straight(-constants.WALL_FOLLOW_STEP)
-            angle_adjustment = constants.OBSTACLE_TURN_ANGLE  # Small right turn to avoid spinning
+            self.drive_base.straight(-30)
+            angle_adjustment = -constants.OBSTACLE_TURN_ANGLE  # Small left turn to avoid spinning
             self.drive_base.turn(angle_adjustment)
 
         elif not self.detect_wall_on_right():
             # If no wall is detected on the right, make a gradual right turn to search for the wall
-            self.drive_base.turn(constants.WALL_FOLLOW_ADJUST_ANGLE)
+            self.drive_base.turn(-constants.WALL_FOLLOW_ADJUST_ANGLE)
         else:
-            # For consistent wall-following, calculate a gentle right adjustment based on distance error
-            distance_error = constants.WALL_FOLLOW_MIN_DISTANCE - self.side_sensor.distance()
+            # For consistent wall-following, calculate a gentle left adjustment based on distance error
+            distance_error = constants.WALL_FOLLOW_DISTANCE - self.side_sensor.distance()
             angle_adjustment = max(min(distance_error * constants.WALL_FOLLOW_ADJUST_ANGLE, constants.MAX_ANGLE_ADJUST), constants.MIN_ANGLE_ADJUST)
-            self.drive_base.turn(angle_adjustment)
-            self.drive_base.straight(constants.WALL_FOLLOW_STEP)
+            self.drive_base.drive(125, angle_adjustment)
 
 
 
@@ -86,7 +85,7 @@ class Robot:
         """Activate fan and cool down after extinguishing fire."""
         print("Extinguishing fire...")
         self.fan_motor.run_time(constants.FAN_SPEED, constants.FAN_RUN_TIME)
-        self.transition_to(COMPLETE)
+        self.transition_to(WANDER)
         print("Cooling down after extinguishing fire.")
         self.hub.light.on(Color.GREEN)
 
